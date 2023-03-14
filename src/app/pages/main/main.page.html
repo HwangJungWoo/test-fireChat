@@ -1,0 +1,130 @@
+<ion-header class="title-header">
+  <ion-toolbar color="primary">
+    <!-- 앱 타이틀과 팝오버 버튼이 있는 헤더 컴포넌트 -->
+    <ion-title>Fire Chat</ion-title>
+    <ion-buttons slot="end">
+      <ion-button fill="clear" id="popover">
+        <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <!-- 팝오버 컴포넌트, 팝오버 버튼을 클릭하면 로그아웃할 수 있음 -->
+    <ion-popover #popover trigger="popover" triggerAction="click">
+      <ng-template>
+        <ion-content class="ion-padding ion-text-center" (click)="logout()">
+          <ion-label color="danger">
+            LOGOUT
+          </ion-label>
+        </ion-content>
+      </ng-template>
+    </ion-popover>
+  </ion-toolbar>
+  <!-- ion-segment 컴포넌트, 상태, 채팅, 통화 탭을 표시함 -->
+  <ion-segment [value]="segment" mode="md" (ionChange)="onSegmentChanged($event)">
+    <ion-segment-button value="status">
+      <ion-label>Status</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="chats">
+      <ion-label>Chats</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="calls">
+      <ion-label>Calls</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+</ion-header>
+
+<ion-content color="light">
+
+  <app-empty-screen *ngIf="(chatRooms | async)?.length == 0" [model]="model">
+
+  </app-empty-screen>
+
+  <!-- ion-list 컴포넌트, 채팅 방 목록을 표시함 -->
+  <!-- 위 코드는 chatRooms 변수가 비동기적으로 데이터를 전달받는 Observable 객체이고, 
+    이를 async 파이프(async pipe)를 사용하여 구독(subscribe)합니다. 
+    async 파이프는 Observable 객체를 구독하고, Observable이 발행한 데이터를 자동으로 처리합니다.
+    as 키워드를 사용하여 async 파이프로 전달받은 데이터를 rooms 변수에 할당하고, 
+    이를 rooms 타입으로 캐스팅합니다. 
+    이는 chatRooms 객체가 Observable 객체이므로 데이터 형식이 일관되지 않을 수 있기 때문에, 
+    rooms 변수를 특정 타입으로 캐스팅하여 타입 안정성을 확보하기 위한 것입니다.
+    따라서, 위 코드는 chatRooms Observable 객체로부터 비동기적으로 데이터를 전달받아 rooms 변수에 할당하고, 
+    이를 rooms 타입으로 캐스팅하여 타입 안정성을 확보하는 코드입니다. -->
+
+    <!-- segment 변수의 값이 'chats'와 같고, 
+      chatRooms 객체가 async 파이프를 통해 비동기적으로 가져와서 rooms 변수에 할당될 수 있을 때,
+      해당 ion-list 컴포넌트가 보여지게 됩니다.
+      즉, chatRooms 객체가 아직 로드되지 않은 경우에는 rooms 변수에 할당되지 않기 때문에, 
+      이 때는 해당 UI가 보이지 않습니다. 하지만, chatRooms 객체가 로드되고 rooms 변수에 할당되는 순간에는 해당 UI가 보이게 됩니다.
+      이 코드에서는 async 파이프를 사용하여 chatRooms 객체를 비동기적으로 가져오고, 
+      as 키워드를 사용하여 rooms 변수에 할당하고 있습니다. 
+      따라서, rooms 변수는 chatRooms 객체가 로드된 이후에 사용할 수 있게 되며, 
+      이를 통해 최근 채팅방 목록을 보여주는 UI를 구현하고 있습니다. -->
+  <ion-list *ngIf="segment == 'chats' && (chatRooms | async) as rooms">
+
+    <!-- 최근 채팅 목록 헤더 -->
+    <ion-list-header class="ion-padding-bottom" color="light">
+      RECENT CHATS
+    </ion-list-header>
+
+    <!-- 각 채팅 방을 나타내는 ion-item 컴포넌트, 클릭하면 해당 채팅 방으로 이동함 -->
+    <ion-item *ngFor="let item of rooms" (click)="getChat(item)" [detail]="true">
+
+      <ng-container *ngIf="(item?.user | async) as user">
+        <ion-avatar slot="start">
+          <img [src]="getUser(user)?.photo" />
+        </ion-avatar>
+  
+        <ion-label>
+          {{ getUser(user)?.name }}
+        </ion-label>
+
+      </ng-container>
+
+    </ion-item>
+
+  </ion-list>
+
+  <!-- ion-fab 컴포넌트, 새로운 채팅 방을 생성하는 버튼을 표시함 -->
+  <ion-fab slot="fixed" horizontal="end" vertical="bottom">
+    <ion-fab-button (click)="newChat()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+
+  <!-- ion-modal 컴포넌트, 새로운 채팅 방을 만들기 위한 모달 창을 표시함 -->
+  <ion-modal #new_chat [isOpen]="open_new_chat" (willDismiss)="onWillDismiss($event)">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar color="primary">
+          <!-- 모달 헤더, "New Chat" 타이틀과 취소 버튼을 포함함 -->
+          <ion-title>New Chat</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="cancel()">Cancel</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <!-- *ngIf: 조건부 렌더링, users 배열이 존재하면 ion-content를 표시함 -->
+      <ion-content color="light" *ngIf="(users | async) as user$">
+        <!-- [style.background]: 배경색을 투명하게 설정함 -->
+        <ion-list class="ion-margin-top" [style.background]="'transparent'" lines="none">
+          <!-- app-user-list 컴포넌트, 새로운 채팅 방을 만들기 위해 사용자 목록을 표시함 -->
+          <!-- $ 기호는 일반적으로 RxJS에서 사용되는 오퍼레이터(operator)를 나타내기 위해 사용됩니다.
+            user$는 user라는 이름의 스트림(stream)을 나타냅니다. 
+            스트림은 일련의 데이터를 일정한 간격으로 방출하는 것을 말합니다. 
+            Angular에서 async 파이프를 사용하여 스트림의 데이터를 비동기적으로 템플릿에 출력할 수 있는데, 
+            이때 스트림의 이름 끝에 $ 기호를 붙이는 것이 일반적입니다.$ 기호를 붙이는 것은 스트림을 나타내기 위한 관례적인 표기법입니다. 
+            스트림의 이름 끝에 $ 기호를 붙이면 해당 스트림이 Observable 객체임을 나타내고, 
+            Observable 객체를 사용하는 코드에서는 이를 구분하여 사용할 수 있습니다. 
+            또한, $ 기호를 사용하여 스트림을 구독하거나 연산을 수행할 때 Observable 객체임을 나타낼 수 있습니다. -->
+            <!-- 
+            [item]="item" 구문에서 []는 프로퍼티 바인딩을 나타내며, =는 부모 컴포넌트에서 자식 컴포넌트로 
+            데이터를 전달할 때 사용하는 바인딩 연산자입니다. 
+            item 프로퍼티는 @Input 데코레이터를 사용하여 자식 컴포넌트에서 전달된 데이터를 받을 수 있도록 설정되어 있습니다.
+            -->
+          <app-user-list *ngFor="let item of user$" [item]="item" (onClick)="startChat($event)">
+          </app-user-list>
+        </ion-list>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+</ion-content>
